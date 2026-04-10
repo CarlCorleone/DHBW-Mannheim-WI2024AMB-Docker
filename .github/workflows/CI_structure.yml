@@ -1,0 +1,69 @@
+name: CI - Solution structure check
+
+on:
+  pull_request:
+
+jobs:
+  structure-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate structure
+        shell: bash
+        run: |
+          set -e
+
+          SOLUTION_DIR=$(find . -maxdepth 1 -type d -name "solution_*" | head -n 1)
+
+          if [ -z "$SOLUTION_DIR" ]; then
+            echo "Missing solution_<name> directory"
+            exit 1
+          fi
+
+          echo "Checking $SOLUTION_DIR"
+
+          # 1. APIs copied
+          if [ ! -d "$SOLUTION_DIR/apis" ]; then
+            echo "Missing apis folder in solution"
+            exit 1
+          fi
+
+          # 2. Dockerfiles exist
+          DOCKERFILES=$(find "$SOLUTION_DIR" -name "Dockerfile*" | wc -l)
+          if [ "$DOCKERFILES" -eq 0 ]; then
+            echo "No Dockerfiles found"
+            exit 1
+          fi
+
+          # 3. docker-compose exists
+          if [ ! -f "$SOLUTION_DIR/docker-compose.yml" ] && [ ! -f "$SOLUTION_DIR/docker-compose.yaml" ]; then
+            echo "Missing docker-compose file"
+            exit 1
+          fi
+
+          # 4. README exists
+          if [ ! -f "$SOLUTION_DIR/README.md" ]; then
+            echo "Missing README.md"
+            exit 1
+          fi
+
+      - name: Validate README content
+        shell: bash
+        run: |
+          set -e
+
+          SOLUTION_DIR=$(find . -maxdepth 1 -type d -name "solution_*" | head -n 1)
+
+          if ! grep -qi "endpoints" "$SOLUTION_DIR/README.md"; then
+            echo "README.md missing endpoints section"
+            exit 1
+          fi
+
+          if ! grep -Eqi "http://|localhost" "$SOLUTION_DIR/README.md"; then
+            echo "README.md must contain URLs (http:// or localhost)"
+            exit 1
+          fi
+
+          echo "README looks valid"
